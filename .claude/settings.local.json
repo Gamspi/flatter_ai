@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter create:*)",
+      "Bash(flutter devices:*)",
+      "Bash(flutter emulators:*)",
+      "Bash(flutter --version)",
+      "Bash(flutter run:*)",
+      "Bash(./gradlew assembleDebug --stacktrace)",
+      "Bash(./gradlew assembleDebug --info)",
+      "Bash(flutter pub:*)"
+    ]
+  }
+}
