@@ -28,51 +28,63 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     if (!mounted) return;
 
-    if (isValid) {
-      final LocalAuthentication localAuth = LocalAuthentication();
-      final canBio =
-          await localAuth.canCheckBiometrics && await localAuth.isDeviceSupported();
+    if (!isValid) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+      return;
+    }
 
-      if (canBio) {
-        try {
-          final ok = await localAuth.authenticate(
-            localizedReason: 'Войдите в приложение',
-            options: const AuthenticationOptions(
-              biometricOnly: true,
-              stickyAuth: true,
-            ),
-          );
-          if (ok && mounted) {
-            final name = await service.getStoredUserName() ?? '';
-            if (mounted) {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => HomeScreen(username: name)),
-              );
-            }
-          } else if (!ok && mounted) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
-            );
-          }
-        } catch (_) {
+    final isTokenValid = await service.verifyToken();
+    if (!mounted) return;
+
+    if (!isTokenValid) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+      return;
+    }
+
+    final LocalAuthentication localAuth = LocalAuthentication();
+    final canBio =
+        await localAuth.canCheckBiometrics && await localAuth.isDeviceSupported();
+    if (!mounted) return;
+
+    if (canBio) {
+      try {
+        final ok = await localAuth.authenticate(
+          localizedReason: 'Войдите в приложение',
+          options: const AuthenticationOptions(
+            biometricOnly: true,
+            stickyAuth: true,
+          ),
+        );
+        if (ok && mounted) {
+          final name = await service.getStoredUserName() ?? '';
           if (mounted) {
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
+              MaterialPageRoute(builder: (_) => HomeScreen(username: name)),
             );
           }
+        } else if (!ok && mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
         }
-      } else if (mounted) {
-        final name = await service.getStoredUserName() ?? '';
+      } catch (_) {
         if (mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => HomeScreen(username: name)),
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
           );
         }
       }
     } else if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      final name = await service.getStoredUserName() ?? '';
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => HomeScreen(username: name)),
+        );
+      }
     }
   }
 
