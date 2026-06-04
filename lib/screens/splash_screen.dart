@@ -46,8 +46,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     }
 
     final LocalAuthentication localAuth = LocalAuthentication();
-    final canBio =
-        await localAuth.canCheckBiometrics && await localAuth.isDeviceSupported();
+    bool canBio = false;
+    try {
+      canBio = await localAuth.canCheckBiometrics && await localAuth.isDeviceSupported();
+    } catch (_) {}
     if (!mounted) return;
 
     if (canBio) {

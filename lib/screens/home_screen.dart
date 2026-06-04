@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -301,7 +302,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final asyncValue = ref.watch(archiveProvider);
     return asyncValue.when(
       loading: () => const SizedBox.shrink(),
-      error: (e, st) => const SizedBox.shrink(),
+      error: (e, st) {
+        if (kDebugMode) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Text('[debug] archive error: $e', style: const TextStyle(color: Colors.red, fontSize: 11)),
+          );
+        }
+        return const SizedBox.shrink();
+      },
       data: (archive) {
         if (archive.loans.isEmpty && archive.deposits.isEmpty) return const SizedBox.shrink();
         final fmt = NumberFormat('#,##0', 'ru_RU');

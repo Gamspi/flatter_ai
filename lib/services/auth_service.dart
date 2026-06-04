@@ -19,7 +19,9 @@ class AuthService {
   static const _expiresAtKey = 'sk_expires_at';
   static const _userNameKey = 'sk_user_name';
 
-  final _storage = const FlutterSecureStorage();
+  final _storage = const FlutterSecureStorage(
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
 
   String get _baseUrl =>
       dotenv.env['API_BASE_URL'] ?? 'https://sibkredit.dev.redramka.ru/rest/auth';
