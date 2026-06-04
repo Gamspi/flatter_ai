@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../providers/auth_provider.dart';
+import '../providers/archive_provider.dart';
+import '../services/auth_service.dart';
 import '../widgets/app_colors.dart';
 import '../widgets/home_header.dart';
 import '../widgets/promo_banner_card.dart';
 import '../widgets/bonus_card.dart';
 import '../widgets/section_header.dart';
 import '../widgets/credit_card_tile.dart';
+import '../widgets/loan_card.dart';
+import '../widgets/deposit_card.dart';
 import 'login_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -31,7 +36,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  static const _navTitles = ['Мой банк', 'История', 'Платежи', 'Чаты', 'Оформить'];
+  static const _navTitles = ['Мой банк', 'Архив', 'Платежи', 'Чаты', 'Оформить'];
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +46,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         index: _navIndex,
         children: [
           _buildMainTab(),
-          _buildPlaceholderTab(_navTitles[1]),
+          _buildArchiveTab(),
           _buildPlaceholderTab(_navTitles[2]),
           _buildPlaceholderTab(_navTitles[3]),
           _buildPlaceholderTab(_navTitles[4]),
@@ -68,10 +73,120 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: const BonusCard(),
             ),
           ),
-          SliverToBoxAdapter(child: _buildCardsSection()),
+          SliverToBoxAdapter(child: _buildArchiveSectionInMain()),
           SliverToBoxAdapter(child: _buildCreditsSection()),
           SliverToBoxAdapter(child: _buildSavingsSection()),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArchiveTab() {
+    final asyncValue = ref.watch(archiveProvider);
+    return SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+            child: Text(
+              'Архив',
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Expanded(
+            child: asyncValue.when(
+              loading: () => const Center(child: CircularProgressIndicator(color: AppColors.lime)),
+              error: (e, _) {
+                if (e is AuthException && e.statusCode == 401) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      );
+                    }
+                  });
+                  return const SizedBox.shrink();
+                }
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        e.toString().contains('502') || e.toString().contains('временно')
+                            ? 'Данные временно недоступны'
+                            : 'Не удалось загрузить данные',
+                        style: const TextStyle(color: AppColors.textSecondary),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () => ref.read(archiveProvider.notifier).refresh(),
+                        child: const Text('Повторить', style: TextStyle(color: AppColors.lime)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              data: (archive) => RefreshIndicator(
+                color: AppColors.lime,
+                onRefresh: () => ref.read(archiveProvider.notifier).refresh(),
+                child: CustomScrollView(
+                  slivers: [
+                    if (archive.loans.isNotEmpty) ...[
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                          child: Text('Займы', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                        ),
+                      ),
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (_, i) => Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                            child: LoanCard(loan: archive.loans[i]),
+                          ),
+                          childCount: archive.loans.length,
+                        ),
+                      ),
+                    ],
+                    if (archive.deposits.isNotEmpty) ...[
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          child: Text('Вклады', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                        ),
+                      ),
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (_, i) => Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                            child: DepositCard(deposit: archive.deposits[i]),
+                          ),
+                          childCount: archive.deposits.length,
+                        ),
+                      ),
+                    ],
+                    if (archive.loans.isEmpty && archive.deposits.isEmpty)
+                      const SliverFillRemaining(
+                        child: Center(
+                          child: Text(
+                            'Нет закрытых договоров',
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+                          ),
+                        ),
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -168,28 +283,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildCardsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(title: 'Карты', actionLabel: 'Оформить'),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Container(
-            height: 64,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
+  Widget _buildArchiveSectionInMain() {
+    final asyncValue = ref.watch(archiveProvider);
+    return asyncValue.when(
+      loading: () => const SizedBox.shrink(),
+      error: (e, st) => const SizedBox.shrink(),
+      data: (archive) {
+        if (archive.loans.isEmpty && archive.deposits.isEmpty) return const SizedBox.shrink();
+        final fmt = NumberFormat('#,##0', 'ru_RU');
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
+              title: 'Архив',
+              actionLabel: 'Все',
+              onAction: () => setState(() => _navIndex = 1),
             ),
-            child: const Center(
-              child: Text(
-                'Карты не добавлены',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            ...archive.loans.map(
+              (loan) => Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: CreditCardTile(
+                  amount: '${fmt.format(loan.amount)} ₽',
+                  label: '${loan.number} · ${loan.name}',
+                  leadingIcon: Icons.history_outlined,
+                  badgeText: loan.status,
+                  badgeColor: AppColors.textSecondary,
+                ),
               ),
             ),
-          ),
-        ),
-      ],
+            ...archive.deposits.map(
+              (deposit) => Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: CreditCardTile(
+                  amount: '${fmt.format(deposit.currentAmount)} ₽',
+                  label: '${deposit.number} · ${deposit.name}',
+                  leadingIcon: Icons.savings_outlined,
+                  badgeText: deposit.status,
+                  badgeColor: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -297,7 +433,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         NavigationDestination(
           icon: const Icon(Icons.history_outlined, color: AppColors.textSecondary),
           selectedIcon: const Icon(Icons.history, color: AppColors.lime),
-          label: 'История',
+          label: 'Архив',
         ),
         NavigationDestination(
           icon: const Icon(Icons.payments_outlined, color: AppColors.textSecondary),
