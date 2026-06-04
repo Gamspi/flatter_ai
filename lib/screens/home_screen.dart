@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/app_colors.dart';
 import '../widgets/home_header.dart';
 import '../widgets/promo_banner_card.dart';
@@ -8,22 +10,25 @@ import '../widgets/section_header.dart';
 import '../widgets/credit_card_tile.dart';
 import 'login_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   final String username;
 
   const HomeScreen({super.key, required this.username});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _navIndex = 0;
 
-  void _logout() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+  Future<void> _logout() async {
+    await ref.read(authProvider.notifier).logout();
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
   }
 
   static const _navTitles = ['Мой банк', 'История', 'Платежи', 'Чаты', 'Оформить'];
