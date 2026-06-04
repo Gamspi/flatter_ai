@@ -101,6 +101,26 @@ class AuthService {
 
   Future<String?> getStoredToken() => _storage.read(key: _tokenKey);
 
+  Future<bool> verifyToken() async {
+    final token = await _storage.read(key: _tokenKey);
+    if (token == null) return false;
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/me'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 401) {
+        await _storage.delete(key: _tokenKey);
+        await _storage.delete(key: _expiresAtKey);
+        await _storage.delete(key: _userNameKey);
+        return false;
+      }
+      return response.statusCode == 200;
+    } catch (_) {
+      return true;
+    }
+  }
+
   Future<void> logout() async {
     final token = await _storage.read(key: _tokenKey);
 

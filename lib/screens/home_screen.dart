@@ -11,6 +11,8 @@ import '../widgets/promo_banner_card.dart';
 import '../widgets/bonus_card.dart';
 import '../widgets/section_header.dart';
 import '../widgets/credit_card_tile.dart';
+import '../models/loan_model.dart';
+import '../models/deposit_model.dart';
 import '../widgets/loan_card.dart';
 import '../widgets/deposit_card.dart';
 import 'login_screen.dart';
@@ -40,6 +42,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<({List<LoanModel> loans, List<DepositModel> deposits})>>(
+      archiveProvider,
+      (_, next) {
+        next.whenOrNull(
+          error: (e, _) {
+            if (e is AuthException && e.statusCode == 401 && mounted) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                ref.read(authProvider.notifier).logout();
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+              });
+            }
+          },
+        );
+      },
+    );
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: IndexedStack(
@@ -104,13 +125,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               loading: () => const Center(child: CircularProgressIndicator(color: AppColors.lime)),
               error: (e, _) {
                 if (e is AuthException && e.statusCode == 401) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      );
-                    }
-                  });
                   return const SizedBox.shrink();
                 }
                 return Center(
